@@ -1,0 +1,85 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Quadtree {
+    public struct Boundary {
+        public Rect rect;
+
+        public Boundary(float x, float y, float width, float height) {
+            rect = new Rect(x, y, width, height);
+        }
+
+        public bool Contains(Vector2 point) {
+            return rect.Contains(point);
+        }
+
+        public bool Intersects(Boundary other) {
+            return rect.Overlaps(other.rect);
+        }
+    }
+
+    public Boundary boundary;
+    public int capacity;
+    public List<Vector2> points;
+    public bool divided;
+
+    private Quadtree northeast, northwest, southeast, southwest;
+
+    public Quadtree(Boundary _boundary, int _capacity) {
+        boundary = _boundary;
+        capacity = _capacity;
+        points = new List<Vector2>();
+        divided = false;
+    }
+
+    public bool Insert(Vector2 point) {
+        if (!boundary.Contains(point)) return false;
+
+        if (points.Count < capacity) {
+            points.Add(point);
+            return true;
+        }
+
+        if (!divided) Subdivide();
+
+        if (northeast.Insert(point)) return true;
+        if (northwest.Insert(point)) return true;
+        if (southeast.Insert(point)) return true;
+        if (southwest.Insert(point)) return true;
+
+        return false;
+    }
+
+    private void Subdivide() {
+        float x = boundary.rect.x;
+        float y = boundary.rect.y;
+        float w = boundary.rect.width / 2;
+        float h = boundary.rect.height / 2;
+
+        northeast = new Quadtree(new Boundary(x + w, y - h, w, h), capacity);
+        northwest = new Quadtree(new Boundary(x - w, y - h, w, h), capacity);
+        southeast = new Quadtree(new Boundary(x + w, y + h, w, h), capacity);
+        southwest = new Quadtree(new Boundary(x - w, y + h, w, h), capacity);
+
+        divided = true;
+    }
+
+    public List<Vector2> Query(Boundary range) {
+        List<Vector2> found = new List<Vector2>();
+
+        if (!boundary.Intersects(range)) return found;
+
+        foreach (var point in points) {
+            if (range.Contains(point)) found.Add(point);
+        }
+
+        if (divided) {
+            found.AddRange(northeast.Query(range));
+            found.AddRange(northwest.Query(range));
+            found.AddRange(southeast.Query(range));
+            found.AddRange(southwest.Query(range));
+        }
+
+        return found;
+    }
+}
